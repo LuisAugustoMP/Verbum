@@ -1276,14 +1276,47 @@
           scrollToBottom(true);
         }
 
-        // 8. PERSISTENCE: Save assistant message even if user switched
-        await saveMessage(finalConvId, 'assistant', fullResponse);
-        
-        // Update history only if we are still here
+        // 8. BREAK RESPONSE INTO PARAGRAPHS AND SEND INCREMENTALLY
+        const paragraphs = fullResponse
+          .split(/\n\n+/)
+          .map(p => p.trim())
+          .filter(p => p.length > 0);
+
+        // Remove streaming bubble first
         if (currentConversation.id === finalConvId) {
-          conversationMessages.push({ role: 'assistant', conteudo: fullResponse, criado_em: new Date().toISOString() });
+          const lastMessage = document.querySelectorAll('.message-assistant');
+          if (lastMessage.length > 0) {
+            lastMessage[lastMessage.length - 1].remove();
+          }
         }
 
+        // Send each paragraph as separate message
+        for (let i = 0; i < paragraphs.length; i++) {
+          const paragraph = paragraphs[i];
+          
+          // Only show in UI if still on same conversation
+          if (currentConversation.id === finalConvId) {
+            appendMessageBubble('assistant', paragraph, true);
+            scrollToBottom(true);
+            // Small delay between paragraphs for better UX
+            if (i < paragraphs.length - 1) {
+              await sleep(100);
+            }
+          }
+          
+          // Always save to database regardless of current view
+          await saveMessage(finalConvId, 'assistant', paragraph);
+        }
+
+        // Update conversation history
+        if (currentConversation.id === finalConvId) {
+          conversationMessages.push(...paragraphs.map(p => ({
+            role: 'assistant',
+            conteudo: p,
+            criado_em: new Date().toISOString()
+          })));
+        }
+        
         saveMemory(query, fullResponse).catch(e => console.warn(e));
 
       } catch (err) {
