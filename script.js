@@ -1137,53 +1137,62 @@
       const query = input.value.trim();
       if (!query || isProcessing) return;
 
+      // Capture the current conversation state locally
+      const targetConvId = currentConversation.id;
+      const targetConversation = currentConversation;
+      
       isProcessing = true;
       input.value = '';
       input.style.height = 'auto';
       $('send-btn').disabled = true;
 
-      // Display user message
+      // Display user message in UI immediately
       appendMessageBubble('user', query);
       scrollToBottom(true);
 
-      // Check if conversation is temporary
-      if (currentConversation.id === 'temp') {
-        const newConv = await createConversation();
-        currentConversation = newConv;
-      }
-
-      // Save user message to DB
-      const savedUserMsg = await saveMessage(currentConversation.id, 'user', query);
-
-      // Update conversation title if this is the first message
-      if (conversationMessages.length === 0) {
-        updateConversationTitle(currentConversation.id, query);
-        currentConversation.titulo = query.substring(0, 60);
-      }
-
-      // Add to local history
+      // Add to local history for immediate feedback
       conversationMessages.push({ role: 'user', conteudo: query, criado_em: new Date().toISOString() });
 
-      // Set sphere to thinking
-      setSphereState('thinking');
-
-      // Create streaming bubble with loading dots
-      const bubble = createStreamingBubble();
-
       try {
-        // 1. Generate query embedding
+        let finalConvId = targetConvId;
+        
+        // 1. Check if conversation is temporary (and create if needed)
+        if (targetConvId === 'temp') {
+          const newConv = await createConversation();
+          finalConvId = newConv.id;
+          
+          // If the user is still on this "temp" conversation, update global state
+          if (currentConversation.id === 'temp') {
+            currentConversation = newConv;
+          }
+          targetConversation.id = finalConvId; // Update local reference too
+        }
+
+        // 2. Save user message to DB
+        await saveMessage(finalConvId, 'user', query);
+
+        // 3. Update conversation title if this is the first message
+        const messagesInConv = await loadMessages(finalConvId);
+        if (messagesInConv.length <= 1) { // 1 because we just saved user message
+          updateConversationTitle(finalConvId, query);
+        }
+
+        // Set sphere to thinking
+        setSphereState('thinking');
+
+        // 4. Create streaming bubble in UI
+        const bubble = createStreamingBubble();
+
+        // 5. Generate query embedding & Search (RAG)
         let queryEmbedding;
         try {
           queryEmbedding = await generateEmbedding(query);
         } catch (embErr) {
-          console.warn('Embedding generation failed, proceeding without RAG:', embErr);
-          queryEmbedding = null;
+          console.warn('Embedding generation failed:', embErr);
         }
 
-        // 2. Search memories and documents
         let memories = [];
         let documents = [];
-
         if (queryEmbedding) {
           const [memResults, docResults] = await Promise.all([
             searchMemories(queryEmbedding),
@@ -1193,13 +1202,10 @@
           documents = await enrichDocumentResults(docResults);
         }
 
-        // 3. Build context
         const ragContext = buildContext(memories, documents, conversationMessages);
-
-        // 4. Build message array
         const apiMessages = buildMessages(query, ragContext, conversationMessages.slice(0, -1));
 
-        // 5. Call OpenRouter with streaming
+        // 6. Call OpenRouter with streaming
         setSphereState('responding');
 
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -1223,7 +1229,6 @@
           throw new Error(errData.error?.message || 'Erro na API: ' + response.status);
         }
 
-        // 6. Stream the response
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullResponse = '';
@@ -1239,7 +1244,6 @@
           for (const line of lines) {
             const trimmed = line.trim();
             if (!trimmed.startsWith('data: ')) continue;
-
             const data = trimmed.slice(6);
             if (data === '[DONE]') break;
 
@@ -1249,8 +1253,8 @@
               if (token) {
                 fullResponse += token;
 
-                // Batch rendering to animation frames
-                if (!renderQueued) {
+                // 7. Update UI ONLY if user is still on this conversation
+                if (currentConversation.id === finalConvId && !renderQueued) {
                   renderQueued = true;
                   requestAnimationFrame(() => {
                     bubble.innerHTML = '<div class="msg-content">' + marked.parse(fullResponse) + '</div>';
@@ -1259,35 +1263,44 @@
                   });
                 }
               }
-            } catch (parseErr) {
-              // Skip unparseable chunks
-            }
+            } catch (pErr) {}
           }
         }
 
-        // Final render to ensure everything is displayed
-        bubble.innerHTML = '<div class="msg-content">' + marked.parse(fullResponse) + '</div>';
-        scrollToBottom(true);
+        // Final UI sync
+        if (currentConversation.id === finalConvId) {
+          bubble.innerHTML = '<div class="msg-content">' + marked.parse(fullResponse) + '</div>';
+          scrollToBottom(true);
+        }
 
-        // 7. Save assistant message
-        await saveMessage(currentConversation.id, 'assistant', fullResponse);
-        conversationMessages.push({ role: 'assistant', conteudo: fullResponse, criado_em: new Date().toISOString() });
+        // 8. PERSISTENCE: Save assistant message even if user switched
+        await saveMessage(finalConvId, 'assistant', fullResponse);
+        
+        // Update history only if we are still here
+        if (currentConversation.id === finalConvId) {
+          conversationMessages.push({ role: 'assistant', conteudo: fullResponse, criado_em: new Date().toISOString() });
+        }
 
-        // 8. Save memory (async, non-blocking)
-        saveMemory(query, fullResponse).catch(err => console.warn('Erro ao salvar memória:', err));
+        saveMemory(query, fullResponse).catch(e => console.warn(e));
 
       } catch (err) {
         console.error('Erro no chat:', err);
-        setSphereState('error');
-        bubble.innerHTML = '<div class="msg-content" style="color:var(--error)">Erro ao processar resposta: ' + escapeHtml(err.message) + '</div>';
-        scrollToBottom(true);
-        await sleep(3000);
+        if (currentConversation.id === targetConvId) {
+          setSphereState('error');
+          // Update the bubble if it exists
+          const assistantBubbles = document.querySelectorAll('.message-assistant .message-bubble');
+          const lastBubble = assistantBubbles[assistantBubbles.length - 1];
+          if (lastBubble) lastBubble.innerHTML = '<div class="msg-content" style="color:var(--error)">Erro: ' + escapeHtml(err.message) + '</div>';
+        }
       } finally {
-        isProcessing = false;
-        $('send-btn').disabled = false;
-        setSphereState('idle');
-
-        // Refresh conversations list
+        // Reset processing state ONLY if we are still on the same conversation
+        // (Actually we should probably use a more robust way to track multiple active conversations)
+        if (currentConversation.id === targetConvId || targetConvId === 'temp') {
+          isProcessing = false;
+          $('send-btn').disabled = false;
+          setSphereState('idle');
+        }
+        
         loadConversations().then(convs => renderConversationsList(convs));
       }
     }
