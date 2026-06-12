@@ -135,13 +135,25 @@
         console.error('Credenciais Supabase não configuradas');
         return false;
       }
-      if (typeof supabase === 'undefined') {
+
+      const globalSupabase = globalThis.supabase || window.supabase || globalThis.Supabase || window.Supabase;
+      if (!globalSupabase) {
         $('config-warning').style.display = 'block';
-        console.error('Biblioteca Supabase não carregada');
+        console.error('Biblioteca Supabase não carregada. globalThis.supabase não encontrada.');
         return false;
       }
+
+      const createClientFn = typeof globalSupabase.createClient === 'function'
+        ? globalSupabase.createClient
+        : (globalSupabase?.Supabase?.createClient || null);
+      if (!createClientFn) {
+        $('config-warning').style.display = 'block';
+        console.error('createClient não encontrado no pacote Supabase carregado.');
+        return false;
+      }
+
       try {
-        sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        sb = createClientFn.call(globalSupabase, SUPABASE_URL, SUPABASE_ANON_KEY);
         if (!sb) {
           throw new Error('Falha ao criar cliente Supabase');
         }
