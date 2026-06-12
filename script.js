@@ -136,7 +136,7 @@
         return false;
       }
 
-      const globalSupabase = globalThis.supabase || window.supabase || globalThis.Supabase || window.Supabase;
+      const globalSupabase = globalThis.supabase || window.supabase || globalThis.Supabase || window.Supabase || (globalThis.window && globalThis.window.supabase);
       if (!globalSupabase) {
         $('config-warning').style.display = 'block';
         console.error('Biblioteca Supabase não carregada. globalThis.supabase não encontrada.');
@@ -309,6 +309,13 @@
       sphereRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       sphereRenderer.setSize(w, h);
       sphereRenderer.setClearColor(0x000000, 0);
+
+      // Ensure canvas is visible and sized correctly via inline styles
+      try {
+        canvas.style.display = 'block';
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+      } catch (e) {}
 
       // Create solid orb geometry
       const geometry = new THREE.IcosahedronGeometry(1.2, 64);
@@ -1576,7 +1583,10 @@
       // Ensure sphere container is placed in the login screen before sizing
       $('login-sphere-anchor').appendChild($('sphere-wrap'));
       createSphere($('sphere-canvas'));
+      // Try resizing immediately and after small delays to let CSS layout settle
       resizeSphere();
+      setTimeout(resizeSphere, 50);
+      setTimeout(resizeSphere, 250);
 
       // Initialize Supabase
       const supabaseReady = initSupabase();
