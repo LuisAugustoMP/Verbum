@@ -131,10 +131,20 @@
     function initSupabase() {
       if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
         $('config-warning').style.display = 'block';
+        console.error('Credenciais Supabase não configuradas');
+        return false;
+      }
+      if (typeof supabase === 'undefined') {
+        $('config-warning').style.display = 'block';
+        console.error('Biblioteca Supabase não carregada');
         return false;
       }
       try {
         sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        if (!sb) {
+          throw new Error('Falha ao criar cliente Supabase');
+        }
+        console.log('Supabase inicializado com sucesso');
         return true;
       } catch (e) {
         console.error('Erro ao inicializar Supabase:', e);
@@ -362,6 +372,7 @@
     // ==========================================================
 
     async function registerUser(name, password) {
+      if (!sb) throw new Error('Supabase não inicializado. Recarregue a página.');
       if (!name || name.length < 2) throw new Error('Nome deve ter pelo menos 2 caracteres.');
       if (!password || password.length < 4) throw new Error('Senha deve ter pelo menos 4 caracteres.');
 
@@ -382,6 +393,7 @@
     }
 
     async function loginUser(name, password) {
+      if (!sb) throw new Error('Supabase não inicializado. Recarregue a página.');
       if (!name || !password) throw new Error('Preencha nome e senha.');
 
       const { data: user, error } = await sb.from('users').select('*').eq('nome', name).maybeSingle();
@@ -1580,4 +1592,13 @@
     }
 
     // Start the application
-    init();
+    // Wait for DOM and external libraries to be ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        // Wait a tick to ensure all libraries are loaded
+        setTimeout(init, 100);
+      });
+    } else {
+      // DOM already loaded, but still wait a tick for libraries
+      setTimeout(init, 100);
+    }
