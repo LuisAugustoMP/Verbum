@@ -33,6 +33,7 @@
     let isProcessing = false;
     let isSyncing = false;
     let sb = null;
+    let supabaseInitialized = false;
     const vectorSearchCache = new Map();
 
     // Three.js globals
@@ -144,11 +145,13 @@
         if (!sb) {
           throw new Error('Falha ao criar cliente Supabase');
         }
+        supabaseInitialized = true;
         console.log('Supabase inicializado com sucesso');
         return true;
       } catch (e) {
         console.error('Erro ao inicializar Supabase:', e);
         $('config-warning').style.display = 'block';
+        supabaseInitialized = false;
         return false;
       }
     }
@@ -1558,14 +1561,23 @@
       // Update login title with agent name
       $('login-title').textContent = AGENT_NAME;
 
-      // Initialize sphere
-      createSphere($('sphere-canvas'));
+      // Ensure sphere container is placed in the login screen before sizing
       $('login-sphere-anchor').appendChild($('sphere-wrap'));
+      createSphere($('sphere-canvas'));
       resizeSphere();
 
       // Initialize Supabase
       const supabaseReady = initSupabase();
-      if (!supabaseReady) return;
+      if (!supabaseReady) {
+        const loginError = $('auth-error');
+        if (loginError) {
+          loginError.textContent = 'Supabase não inicializado. Recarregue a página.';
+        }
+        return;
+      }
+
+      $('btn-login').disabled = false;
+      $('btn-register').disabled = false;
 
       // Carregar configurações dinâmicas do banco de dados
       await fetchAppConfig();

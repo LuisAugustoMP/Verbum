@@ -16,7 +16,7 @@
     rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -42,8 +42,8 @@
         <input type="text" id="auth-name" placeholder="Nome" autocomplete="username" spellcheck="false">
         <input type="password" id="auth-password" placeholder="Senha" autocomplete="current-password">
         <div id="auth-error"></div>
-        <button class="btn-primary" id="btn-login">Entrar</button>
-        <button class="btn-secondary" id="btn-register">Criar Conta</button>
+        <button class="btn-primary" id="btn-login" disabled>Entrar</button>
+        <button class="btn-secondary" id="btn-register" disabled>Criar Conta</button>
       </div>
     </div>
     <div id="config-warning" style="display:none">
