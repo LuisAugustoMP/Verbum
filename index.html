@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Verbum — Assistente Teológico Reformado</title>
+  <meta name="description"
+    content="Assistente teológico reformado com inteligência artificial, fundamentado nas Escrituras e na tradição reformada histórica.">
+  <meta name="theme-color" content="#F5F5F7">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&family=Nunito:wght@200..1000&family=Quicksand:wght@300..700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <!-- ====================================================
+       LOGIN SCREEN
+       ==================================================== -->
+  <div id="login-screen">
+    <div id="login-sphere-anchor">
+      <!-- Sphere will be placed here on login -->
+    </div>
+    <div class="login-brand">
+      <h1 id="login-title">Verbum</h1>
+      <p>Assistente Teológico Reformado</p>
+    </div>
+    <div class="login-card">
+      <div class="login-form">
+        <input type="text" id="auth-name" placeholder="Nome" autocomplete="username" spellcheck="false">
+        <input type="password" id="auth-password" placeholder="Senha" autocomplete="current-password">
+        <div id="auth-error"></div>
+        <button class="btn-primary" id="btn-login">Entrar</button>
+        <button class="btn-secondary" id="btn-register">Criar Conta</button>
+      </div>
+    </div>
+    <div id="config-warning" style="display:none">
+      <p>⚠️ Configure as credenciais do Supabase no topo do bloco &lt;script&gt; do arquivo index.html antes de usar.
+      </p>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       APP SCREEN
+       ==================================================== -->
+  <div id="app-screen">
+    <!-- Sidebar Overlay -->
+    <div id="sidebar-overlay"></div>
+
+    <!-- Sidebar -->
+    <div id="sidebar">
+      <div class="sidebar-header">
+        <h2>Conversas</h2>
+        <button class="icon-btn" id="close-sidebar-btn" aria-label="Fechar menu">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <button id="new-conv-btn">
+        <i class="fa-solid fa-plus" style="margin-right: 8px;"></i>
+        Nova Conversa
+      </button>
+      <div id="conversations-list"></div>
+      <div class="sidebar-footer">
+        <button id="logout-btn">
+          <i class="fa-solid fa-arrow-right-from-bracket" style="margin-right: 8px;"></i>
+          Sair
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content" class="empty-chat">
+      <!-- Header -->
+      <header id="app-header">
+        <div class="header-left">
+          <button class="icon-btn" id="menu-btn" aria-label="Abrir menu">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+        </div>
+        <div class="header-center">
+          <h1 id="app-title">Verbum</h1>
+          <p>Assistente Teológico</p>
+        </div>
+        <div class="header-right">
+          <button class="icon-btn" id="sync-btn" aria-label="Sincronizar base de conhecimento"
+            title="Sincronizar Base de Conhecimento">
+            <i class="fa-solid fa-rotate"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Sync Progress Bar -->
+      <div id="sync-bar">
+        <div class="sync-progress-track">
+          <div class="sync-progress-fill" id="sync-fill"></div>
+        </div>
+        <span id="sync-status">Preparando...</span>
+      </div>
+
+      <!-- Sphere -->
+      <div id="app-sphere-anchor">
+        <!-- Sphere will be moved here after login -->
+      </div>
+
+      <!-- Chat -->
+      <div id="chat-section">
+        <div id="chat-messages">
+          <div class="welcome-hint" id="welcome-hint">
+            <strong>Sola Scriptura</strong><br>
+            Faça uma pergunta sobre qualquer assunto que desejar.
+          </div>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div id="input-section">
+        <div class="input-wrapper">
+          <textarea id="user-input" rows="1" placeholder="Faça uma pergunta teológica..."></textarea>
+          <button id="send-btn" aria-label="Enviar mensagem">
+            <i class="fa-solid fa-arrow-up"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       PORTABLE SPHERE CONTAINER (moves between screens)
+       ==================================================== -->
+  <div id="sphere-wrap">
+    <canvas id="sphere-canvas"></canvas>
+  </div>
+
+  <!-- ====================================================
+       MAIN SCRIPT
+       ==================================================== -->
+  <script src="script.js"></script>
+</body>
+
+</html>
