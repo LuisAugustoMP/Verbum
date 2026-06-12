@@ -543,6 +543,16 @@
       renderMessages();
       toggleSidebar(false);
 
+      // Ensure sphere is always in app-sphere-anchor
+      setTimeout(() => {
+        const sphereWrap = $('sphere-wrap');
+        const appAnchor = $('app-sphere-anchor');
+        if (sphereWrap && appAnchor && !appAnchor.contains(sphereWrap)) {
+          appAnchor.appendChild(sphereWrap);
+          resizeSphere();
+        }
+      }, 50);
+
       // Update active state in sidebar
       const convs = await loadConversations();
       renderConversationsList(convs);
@@ -578,6 +588,14 @@
       });
 
       scrollToBottom(true);
+
+      // Ensure sphere is always in app-sphere-anchor even with messages
+      const sphereWrap = $('sphere-wrap');
+      const appAnchor = $('app-sphere-anchor');
+      if (sphereWrap && appAnchor && !appAnchor.contains(sphereWrap)) {
+        appAnchor.appendChild(sphereWrap);
+        setTimeout(resizeSphere, 10);
+      }
     }
 
     function appendMessageBubble(role, content, animate = true) {
@@ -626,16 +644,6 @@
         const avatarWrap = document.createElement('div');
         avatarWrap.className = 'message-avatar';
         avatarWrap.innerHTML = '<div class="message-avatar-fallback">' + AGENT_NAME.charAt(0) + '</div>';
-        
-        // Move the sphere to the new latest assistant message
-        setTimeout(() => {
-          const sphereWrap = $('sphere-wrap');
-          if (sphereWrap) {
-            avatarWrap.innerHTML = '';
-            avatarWrap.appendChild(sphereWrap);
-            resizeSphere();
-          }
-        }, 10);
 
         const contentWrap = document.createElement('div');
         contentWrap.className = 'message-content-wrapper';
@@ -669,13 +677,8 @@
 
       const avatarWrap = document.createElement('div');
       avatarWrap.className = 'message-avatar';
-      
-      // Move sphere immediately
-      const sphereWrap = $('sphere-wrap');
-      if (sphereWrap) {
-        avatarWrap.appendChild(sphereWrap);
-        setTimeout(resizeSphere, 10);
-      }
+      // Keep sphere in app-sphere-anchor, just use avatar fallback
+      avatarWrap.innerHTML = '<div class="message-avatar-fallback">' + AGENT_NAME.charAt(0) + '</div>';
 
       const contentWrap = document.createElement('div');
       contentWrap.className = 'message-content-wrapper';
@@ -1408,6 +1411,52 @@
 
     // Sync
     $('sync-btn').addEventListener('click', () => syncKnowledgeBase());
+
+    // Settings Modal
+    $('settings-btn').addEventListener('click', () => {
+      $('model-select').value = OPENROUTER_MODEL;
+      $('settings-modal').classList.add('active');
+      toggleSidebar(false);
+    });
+
+    $('close-settings-btn').addEventListener('click', () => {
+      $('settings-modal').classList.remove('active');
+      $('settings-status').textContent = '';
+    });
+
+    $('save-settings-btn').addEventListener('click', async () => {
+      const newModel = $('model-select').value;
+      const status = $('settings-status');
+      const btn = $('save-settings-btn');
+
+      btn.disabled = true;
+      status.textContent = 'Salvando no Supabase...';
+      status.style.color = 'var(--text-secondary)';
+
+      try {
+        const { error } = await sb
+          .from('config')
+          .update({ value: newModel })
+          .eq('key', 'OPENROUTER_MODEL');
+
+        if (error) throw error;
+
+        OPENROUTER_MODEL = newModel;
+        status.textContent = 'Configuração salva com sucesso!';
+        status.style.color = 'var(--success)';
+        
+        setTimeout(() => {
+          $('settings-modal').classList.remove('active');
+          status.textContent = '';
+        }, 1500);
+      } catch (err) {
+        console.error('Erro ao salvar configuração:', err);
+        status.textContent = 'Erro ao salvar: ' + err.message;
+        status.style.color = 'var(--error)';
+      } finally {
+        btn.disabled = false;
+      }
+    });
 
     // Send message
     $('send-btn').addEventListener('click', () => sendMessage());
